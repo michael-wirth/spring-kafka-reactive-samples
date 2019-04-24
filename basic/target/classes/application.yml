@@ -1,0 +1,15 @@
+spring:
+  cloud:
+    stream:
+      bindings:
+        output:
+          destination: demo.basic.channel
+
+        input:
+          destination: demo.basic.channel
+          group: demo.basic.group
+
+      kafka:
+        binder:
+#          brokers: localhost:9092
+          auto-add-partitions: true

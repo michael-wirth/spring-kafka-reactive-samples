@@ -1,0 +1,139 @@
+---
+version: '3'
+services:
+  zookeeper-1:
+    image: confluentinc/cp-zookeeper:latest
+    environment:
+      ZOOKEEPER_SERVER_ID: 3
+      ZOOKEEPER_CLIENT_PORT: 2181
+      ZOOKEEPER_TICK_TIME: 2000
+      ZOOKEEPER_INIT_LIMIT: 5
+      ZOOKEEPER_SYNC_LIMIT: 2
+      ZOOKEEPER_SERVERS: localhost:2888:3888;localhost:22888:23888;localhost:32888:33888
+    network_mode: host
+    extra_hosts:
+      - "moby:127.0.0.1"
+
+  zookeeper-2:
+    image: confluentinc/cp-zookeeper:latest
+    environment:
+      ZOOKEEPER_SERVER_ID: 1
+      ZOOKEEPER_CLIENT_PORT: 22181
+      ZOOKEEPER_TICK_TIME: 2000
+      ZOOKEEPER_INIT_LIMIT: 5
+      ZOOKEEPER_SYNC_LIMIT: 2
+      ZOOKEEPER_SERVERS: localhost:2888:3888;localhost:22888:23888;localhost:32888:33888
+    network_mode: host
+    extra_hosts:
+      - "moby:127.0.0.1"
+
+  zookeeper-3:
+    image: confluentinc/cp-zookeeper:latest
+    environment:
+      ZOOKEEPER_SERVER_ID: 2
+      ZOOKEEPER_CLIENT_PORT: 32181
+      ZOOKEEPER_TICK_TIME: 2000
+      ZOOKEEPER_INIT_LIMIT: 5
+      ZOOKEEPER_SYNC_LIMIT: 2
+      ZOOKEEPER_SERVERS: localhost:2888:3888;localhost:22888:23888;localhost:32888:33888
+    network_mode: host
+    extra_hosts:
+      - "moby:127.0.0.1"
+
+  kafka-1:
+    image: confluentinc/cp-kafka:latest
+    network_mode: host
+    depends_on:
+      - zookeeper-1
+      - zookeeper-2
+      - zookeeper-3
+    environment:
+      KAFKA_BROKER_ID: 1
+      KAFKA_ZOOKEEPER_CONNECT: localhost:2181,localhost:22181,localhost:32181
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://localhost:9092
+    extra_hosts:
+      - "moby:127.0.0.1"
+
+  kafka-2:
+    image: confluentinc/cp-kafka:latest
+    network_mode: host
+    depends_on:
+      - zookeeper-1
+      - zookeeper-2
+      - zookeeper-3
+    environment:
+      KAFKA_BROKER_ID: 2
+      KAFKA_ZOOKEEPER_CONNECT: localhost:2181,localhost:22181,localhost:32181
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://localhost:29092
+    extra_hosts:
+      - "moby:127.0.0.1"
+
+  kafka-3:
+    image: confluentinc/cp-kafka:latest
+    network_mode: host
+    depends_on:
+      - zookeeper-1
+      - zookeeper-2
+      - zookeeper-3
+    environment:
+      KAFKA_BROKER_ID: 3
+      KAFKA_ZOOKEEPER_CONNECT: localhost:2181,localhost:22181,localhost:32181
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://localhost:39092
+    extra_hosts:
+      - "moby:127.0.0.1"
+
+  control-center:
+    image: confluentinc/cp-enterprise-control-center:latest
+    hostname: control-center
+    depends_on:
+      - zookeeper-1
+      - zookeeper-2
+      - zookeeper-3
+      - kafka-1
+      - kafka-2
+      - kafka-3
+    network_mode: host
+    environment:
+      CONTROL_CENTER_BOOTSTRAP_SERVERS: localhost:9092,localhost:29092,localhost:39092
+      CONTROL_CENTER_ZOOKEEPER_CONNECT: localhost:2181,localhost:22181,localhost:32181
+      CONTROL_CENTER_REPLICATION_FACTOR: 1
+      CONTROL_CENTER_INTERNAL_TOPICS_PARTITIONS: 1
+      CONTROL_CENTER_MONITORING_INTERCEPTOR_TOPIC_PARTITIONS: 1
+      CONFLUENT_METRICS_TOPIC_REPLICATION: 1
+      PORT: 9021
+
+  dataflow-server:
+    image: springcloud/spring-cloud-dataflow-server:2.1.0.M1
+    network_mode: host
+    environment:
+      - spring.cloud.dataflow.applicationProperties.stream.spring.cloud.stream.kafka.binder.brokers=localhost:19092,localhost:29092,localhost:39092
+      - spring.cloud.dataflow.applicationProperties.stream.spring.cloud.stream.kafka.binder.zkNodes=localhost:12181,localhost:22181,localhost:32181
+      - spring.datasource.url=jdbc:h2:tcp://localhost:18082/mem:dataflow
+    depends_on:
+      - kafka-1
+      - kafka-2
+      - kafka-3
+    volumes:
+      - $HOME/.m2:/root/.m2
+      - /tmp/dataflow:/tmp
+
+  skipper-server:
+    image: springcloud/spring-cloud-skipper-server:latest
+    network_mode: host
+
+  app-import:
+    image: springcloud/openjdk:latest
+    network_mode: host
+    depends_on:
+      - dataflow-server
+    command: >
+      /bin/sh -c "
+        apt update; apt install netcat wget -y;
+        while ! nc -zvv localhost 9393;
+        do
+          sleep 1;
+        done;
+        wget -qO- 'http://localhost:9393/apps?force=true' --post-data='uri=http://repo.spring.io/libs-release-local/org/springframework/cloud/stream/app/spring-cloud-stream-app-descriptor/Einstein.SR2/spring-cloud-stream-app-descriptor-Einstein.SR2.stream-apps-kafka-maven';
+        echo 'Stream apps imported'
+        wget -qO- 'http://localhost:9393/apps?force=true' --post-data='uri=http://repo.spring.io/libs-snapshot/org/springframework/cloud/task/app/spring-cloud-task-app-descriptor/Elston.RELEASE/spring-cloud-task-app-descriptor-Elston.RELEASE.task-apps-maven';
+        echo 'Task apps imported'"

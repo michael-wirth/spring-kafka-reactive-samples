@@ -1,0 +1,50 @@
+---
+apiVersion: extensions/v1beta1
+kind: Deployment
+metadata:
+  name: cp-control-center
+  labels:
+    app: cp-control-center
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: cp-control-center
+  template:
+    metadata:
+      labels:
+        app: cp-control-center
+    spec:
+      containers:
+        - name: cp-control-center
+          image: confluentinc/cp-enterprise-control-center:latest
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 9021
+          env:
+            - name: CONTROL_CENTER_BOOTSTRAP_SERVERS
+              value: confluent-oss-cp-kafka:9092
+            - name: CONTROL_CENTER_ZOOKEEPER_CONNECT
+              value: confluent-oss-cp-zookeeper
+            - name: CONTROL_CENTER_REPLICATION_FACTOR
+              value: '1'
+            - name: CONTROL_CENTER_INTERNAL_TOPICS_PARTITIONS
+              value: '1'
+            - name: CONTROL_CENTER_MONITORING_INTERCEPTOR_TOPIC_PARTITIONS
+              value: '1'
+            - name: CONFLUENT_METRICS_TOPIC_REPLICATION
+              value: '1'
+
+---
+kind: Service
+apiVersion: v1
+metadata:
+  name: cp-control-center
+spec:
+  selector:
+    app: cp-control-center
+  ports:
+    - protocol: TCP
+      port: 80
+      targetPort: 9021
+  type: LoadBalancer

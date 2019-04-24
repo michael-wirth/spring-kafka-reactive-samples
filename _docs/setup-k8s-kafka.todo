@@ -1,0 +1,20 @@
+
+
+Setup `minishift` and `helm`
+ # see https://sethlakowske.com/articles/installing-helm-on-minishift/
+ ☐ minishift start --vm-driver virtualbox --cpus 4 --memory 8GB --disk-size 100GB
+ ☐ oc login -u system:admin
+ ☐ kubectl create sa helm -n kube-system
+ ☐ kubectl create clusterrolebinding helm-admin --clusterrole=cluster-admin --serviceaccount=kube-system:helm
+ ☐ helm init --service-account helm
+ ☐ kubectl expose deployment/tiller-deploy --target-port=tiller --type=NodePort --name=tiller -n kube-system
+ ☐ export HELM_HOST="$(minishift ip):$(oc get svc/tiller -o jsonpath='{.spec.ports[0].nodePort}' -n kube-system --as=system:admin)"
+
+Start Kafka cluster on k8s
+# see https://docs.confluent.io/current/installation/installing_cp/cp-helm-charts/docs/index.html
+ ☐ helm install --set cp-schema-registry.enabled=false,cp-kafka-rest.enabled=false,cp-kafka-connect.enabled=false,cp-ksql-server.enabled=false confluentinc/cp-helm-charts --name confluent-oss
+
+Enable port forwarding to access the Kafka cluster from the local machine
+# see https://gist.github.com/valer-cara/2eceb546d4de7989675010bd20c72a1d
+ ☐ ./multi-broker-tunnel.sh
+

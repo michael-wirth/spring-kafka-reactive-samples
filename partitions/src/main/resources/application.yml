@@ -1,0 +1,20 @@
+spring:
+  cloud:
+    stream:
+      bindings:
+        output:
+          destination: demo.partitions.channel
+          producer:
+            partition-key-expression: payload.name
+            partition-count: 10
+
+        input:
+          destination: demo.partitions.channel
+          group: demo.partitions.group
+          consumer:
+            concurrency: 4
+
+      kafka:
+        binder:
+          brokers: localhost:9092
+          auto-add-partitions: true

@@ -1,0 +1,31 @@
+Kafka as a backbone for Spring Microservices reactive style:
+Michael Wirth
+http://www.mimacom.com
+michael.wirth@mimacom.com
+
+GitHub: https://github.com/michael-wirth/spring-kafka-reactive-samples.git
+
+Spring Cloud Streams with Kafka:
+ ☐ Intro
+ ☐ Use-cases
+   - Domain-Driven-Design
+   - EventSource
+   - Enterprise-Integration for DevOps teams
+ ☐ Project setup https://start.spring.io/
+   Maven, Java 11, version: 2.2.0.M2
+   Dependencies: Cloud Stream, Kafka
+ ☐ Kafka Cluster with Docker
+   Start the kafka cluster: docker-compose up -d
+ ☐ Binding Streams (Basic)
+ ☐ Partitions
+
+Spring Cloud Data Flow:
+  Create sample streams at: http://localhost:9393
+  ☐ time to log
+    stream> time | transform --expression='new StringBuilder(payload).reverse().toString()' | log
+  ☐ http to log
+    stream> http --port=8080 | transform --expression='new String(payload).toUpperCase()' | log --expression='payload.concat(" ").concat(headers.toString())'
+  ☐ existing topic to log
+    stream> :events.destination > log
+    app parameter> spring.cloud.stream.bindings.input.consumer.concurrency=4
+
